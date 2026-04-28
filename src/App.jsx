@@ -5,8 +5,8 @@ import {
   saveScoreLocal,
   getLeaderboard,
   getLeaderboardLocal,
-  isSupabaseConfigured,
-} from './lib/supabase';
+  isConfigured,
+} from './lib/firebase';
 
 // --- THE COMPLETE 43 PERSON ROSTER ---
 const staffData = [
@@ -146,7 +146,7 @@ const App = () => {
   const loadLeaderboard = async () => {
     setLeaderboardLoading(true);
     try {
-      if (isSupabaseConfigured) {
+      if (isConfigured) {
         const { data, error } = await getLeaderboard();
         setLeaderboard(!error && data ? data : getLeaderboardLocal());
       } else {
@@ -168,7 +168,7 @@ const App = () => {
       : 0;
     const entry = { player_name: name, score, time_seconds: timeSeconds, accuracy, crowns: maxStreak };
     try {
-      if (isSupabaseConfigured) {
+      if (isConfigured) {
         const { error } = await saveScore(entry);
         if (error) saveScoreLocal(entry);
       } else {
@@ -416,7 +416,7 @@ const App = () => {
             <div className="px-6 py-5 border-b border-white/5 flex items-center gap-2">
               <Trophy size={16} className="text-yellow-500" />
               <h2 className="text-sm font-black italic uppercase tracking-[0.15em]">All-Time Leaderboard</h2>
-              {!isSupabaseConfigured && (
+              {!isConfigured && (
                 <span className="ml-auto text-[8px] font-black uppercase tracking-[0.15em] text-slate-600 bg-slate-800 px-2 py-1 rounded-full">Local</span>
               )}
             </div>

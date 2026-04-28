@@ -1,6 +1,6 @@
 # IU29 Staff Recognition Game
 
-A React/Vite quiz game where you identify IU29 Schuylkill staff members from their photos. Scores are saved to a shared Supabase leaderboard visible to all players.
+A React/Vite quiz game where you identify IU29 Schuylkill staff from photos. Scores are saved to a shared Firebase Firestore leaderboard visible to every player on any device.
 
 ## Local Development
 
@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-The game works without Supabase — scores fall back to `localStorage` automatically.
+The game works without Firebase — scores fall back to `localStorage` automatically when env vars are absent.
 
 ## Deployment (Vercel)
 
@@ -24,51 +24,68 @@ Add the environment variables below in **Vercel → Project → Settings → Env
 
 ## Environment Variables
 
-| Variable | Description |
+| Variable | Where to find it |
 |---|---|
-| `VITE_SUPABASE_URL` | Your Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Your Supabase anon/public key |
+| `VITE_FIREBASE_API_KEY` | Firebase Console → Project Settings → General → Your apps → Web API key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Same page — `<project-id>.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | Same page — your project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Same page — `<project-id>.appspot.com` |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Same page — Sender ID |
+| `VITE_FIREBASE_APP_ID` | Same page — App ID |
 
-Copy `.env.example` to `.env` for local Supabase testing:
+Copy `.env.example` to `.env` for local testing:
+
 ```bash
 cp .env.example .env
-# fill in your values
+# fill in your values from Firebase Console
 ```
 
-## Supabase Setup
+> **Note:** Firebase web config keys are safe to expose in the browser — they are public identifiers. Access is controlled entirely by Firestore Security Rules, not by keeping the config secret.
 
-Run this SQL in your Supabase project (**SQL Editor → New query**):
+## Firebase Setup
 
-```sql
--- Create the leaderboard table
-create table if not exists leaderboard_entries (
-  id           uuid primary key default gen_random_uuid(),
-  player_name  text not null,
-  score        integer not null,
-  time_seconds integer,
-  accuracy     integer,
-  crowns       integer default 0,
-  created_at   timestamptz default now()
-);
+### 1. Create the project
 
--- Enable Row Level Security
-alter table leaderboard_entries enable row level security;
+1. Go to [console.firebase.google.com](https://console.firebase.google.com)
+2. **Add project** → name it (e.g., `iu29-game`) → Continue
+3. Disable Google Analytics if not needed → **Create project**
 
--- Anyone can read
-create policy "public read"
-  on leaderboard_entries for select
-  using (true);
+### 2. Enable Firestore
 
--- Anyone can insert
-create policy "public insert"
-  on leaderboard_entries for insert
-  with check (true);
+1. In your project: **Build → Firestore Database → Create database**
+2. Choose **Start in production mode**
+3. Pick a region (e.g., `us-east1`) → **Enable**
 
--- No public update or delete (omitting those policies)
+### 3. Set Security Rules
+
+In **Firestore → Rules**, replace the default with:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /leaderboard/{entry} {
+      allow read:   if true;   // anyone can view scores
+      allow create: if true;   // anyone can submit a score
+      allow update, delete: if false;  // no edits or deletions
+    }
+  }
+}
 ```
+
+Click **Publish**.
+
+### 4. Register a Web App
+
+1. Project Overview → **Add app → Web (</> icon)**
+2. Name it (e.g., `iu29-game-web`) → **Register app**
+3. Copy the `firebaseConfig` values into your `.env` / Vercel env vars
 
 ## Testing the Shared Leaderboard
 
-1. Complete a game session and enter your name on the Results screen.
-2. Open the game on a different device or browser.
-3. Tap **View Leaderboard** from the main menu — your score should appear.
+1. Add env vars and deploy (or run locally with `.env` filled in)
+2. Complete a game and enter your name on the Results screen
+3. Open the game on a **different device or browser**
+4. Tap **View Leaderboard** from the main menu — your score should appear
+
+Without env vars the leaderboard header shows a **Local** badge and scores are stored only on that device.
